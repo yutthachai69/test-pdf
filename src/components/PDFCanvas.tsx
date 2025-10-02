@@ -44,6 +44,13 @@ export default function PDFCanvas() {
   const [isRendering, setIsRendering] = useState(false);
   const [isPdfjsReady, setIsPdfjsReady] = useState(false);
 
+  // Auto-open signature modal when signature tool is selected
+  useEffect(() => {
+    if (selectedTool === 'signature') {
+      setShowSignatureModal(true);
+    }
+  }, [selectedTool]);
+
   // Initialize PDF.js
   useEffect(() => {
     const initPdfjs = async () => {
@@ -53,6 +60,7 @@ export default function PDFCanvas() {
           pdfjsLib = pdfjs;
           // Use unpkg CDN for worker
           pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+          console.log('🔧 PDF.js initialized, version:', pdfjs.version);
           setIsPdfjsReady(true);
         } catch (error) {
           console.error('Failed to initialize PDF.js:', error);
@@ -91,20 +99,40 @@ export default function PDFCanvas() {
   // Render PDF page
   useEffect(() => {
     const renderPage = async () => {
-      if (!pdfDoc || !canvasRef.current || isRendering) return;
+      if (!pdfDoc || !canvasRef.current) return;
 
       setIsRendering(true);
       try {
         console.log('🔄 กำลัง render PDF หน้า:', currentPage);
         const page = await pdfDoc.getPage(currentPage);
+        
+        // Use device pixel ratio for crisp rendering at 100%
+        const devicePixelRatio = window.devicePixelRatio || 1;
         const viewport = page.getViewport({ scale });
 
         const canvas = canvasRef.current;
         const context = canvas.getContext('2d');
         if (!context) return;
 
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
+        // Set canvas size with high resolution
+        canvas.width = viewport.width * devicePixelRatio;
+        canvas.height = viewport.height * devicePixelRatio;
+        canvas.style.width = `${viewport.width}px`;
+        canvas.style.height = `${viewport.height}px`;
+        
+        // Use setTransform for crisp rendering
+        context.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+        
+        console.log('📐 Canvas dimensions:', {
+          canvasWidth: canvas.width,
+          canvasHeight: canvas.height,
+          displayWidth: canvas.style.width,
+          displayHeight: canvas.style.height,
+          devicePixelRatio,
+          scale,
+          viewportWidth: viewport.width,
+          viewportHeight: viewport.height
+        });
 
         // Render PDF page
         const renderContext = {
@@ -113,12 +141,14 @@ export default function PDFCanvas() {
         };
 
         await page.render(renderContext).promise;
-        console.log('✅ PDF render เสร็จแล้ว! ขนาด:', viewport.width, 'x', viewport.height);
+        console.log('✅ PDF render เสร็จแล้ว! ขนาด:', viewport.width, 'x', viewport.height, 'Scale:', scale);
 
-        // Setup drawing canvas
+        // Setup drawing canvas with same dimensions
         if (drawingCanvasRef.current) {
           drawingCanvasRef.current.width = viewport.width;
           drawingCanvasRef.current.height = viewport.height;
+          drawingCanvasRef.current.style.width = `${viewport.width / devicePixelRatio}px`;
+          drawingCanvasRef.current.style.height = `${viewport.height / devicePixelRatio}px`;
         }
       } catch (error) {
         console.error('❌ Failed to render page:', error);
@@ -207,6 +237,9 @@ export default function PDFCanvas() {
         fontSize: textSettings.fontSize,
         color: textSettings.color,
         fontFamily: textSettings.fontFamily,
+        fontWeight: textSettings.fontWeight,
+        fontStyle: textSettings.fontStyle,
+        textDecoration: textSettings.textDecoration,
         pageNumber: currentPage,
       };
       console.log('➕ เพิ่ม text annotation:', textAnnotation);
@@ -377,13 +410,12 @@ export default function PDFCanvas() {
 
   return (
     <>
-      <div className="relative inline-block max-w-full">
-        <div
-          ref={containerRef}
-          onClick={handleCanvasClick}
-          className="relative inline-block bg-white shadow-2xl rounded-lg border-2 border-gray-200"
-          style={{ touchAction: 'none', position: 'relative' }}
-        >
+      <div
+        ref={containerRef}
+        onClick={handleCanvasClick}
+        className="relative bg-white shadow-2xl rounded-lg border-0"
+        style={{ touchAction: 'none', display: 'inline-block', overflow: 'visible' }}
+      >
           {isRendering && (
             <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50 pointer-events-none">
               <div className="text-center">
@@ -403,7 +435,7 @@ export default function PDFCanvas() {
             </div>
           )}
 
-          <canvas ref={canvasRef} className="block max-w-full" />
+          <canvas ref={canvasRef} className="block" style={{ display: 'block', maxWidth: 'none' }} />
           <canvas
             ref={drawingCanvasRef}
             onMouseDown={handleMouseDown}
@@ -423,22 +455,21 @@ export default function PDFCanvas() {
               </div>
             ))}
           </div>
+
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            className="hidden"
+          />
+
+          <SignatureModal
+            isOpen={showSignatureModal}
+            onClose={() => setShowSignatureModal(false)}
+            onSave={handleSignatureSave}
+          />
         </div>
-      </div>
-
-      <input
-        ref={imageInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleImageUpload}
-        className="hidden"
-      />
-
-      <SignatureModal
-        isOpen={showSignatureModal}
-        onClose={() => setShowSignatureModal(false)}
-        onSave={handleSignatureSave}
-      />
     </>
   );
 }

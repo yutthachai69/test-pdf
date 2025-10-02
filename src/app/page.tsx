@@ -29,8 +29,8 @@ export default function Home() {
     <div className="flex flex-col h-screen bg-gradient-to-br from-gray-50 to-blue-50">
       <Toolbar />
       
-      <div className="flex-1 overflow-auto p-8">
-        <div className="flex justify-center">
+      <div className="flex-1 overflow-auto p-4">
+        <div className="flex justify-center items-start min-h-full">
           <PDFCanvas />
         </div>
       </div>

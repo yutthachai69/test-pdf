@@ -25,6 +25,9 @@ export interface TextAnnotation {
   fontSize: number;
   color: string;
   fontFamily: string;
+  fontWeight: 'normal' | 'bold';
+  fontStyle: 'normal' | 'italic';
+  textDecoration: 'none' | 'underline';
   pageNumber: number;
 }
 
@@ -84,6 +87,9 @@ export interface PDFState {
     fontSize: number;
     color: string;
     fontFamily: string;
+    fontWeight: 'normal' | 'bold';
+    fontStyle: 'normal' | 'italic';
+    textDecoration: 'none' | 'underline';
   };
   drawSettings: {
     color: string;

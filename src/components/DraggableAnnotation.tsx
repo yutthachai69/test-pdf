@@ -17,6 +17,7 @@ export default function DraggableAnnotation({ annotation }: DraggableAnnotationP
   );
   const [editText, setEditText] = useState(annotation.type === 'text' ? annotation.text : '');
   const nodeRef = useRef<HTMLDivElement>(null);
+  const [isResizing, setIsResizing] = useState(false);
 
   const isSelected = selectedAnnotationId === annotation.id;
 
@@ -48,6 +49,55 @@ export default function DraggableAnnotation({ annotation }: DraggableAnnotationP
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     deleteAnnotation(annotation.id);
+  };
+
+  const handleResize = (e: React.MouseEvent, direction: 'nw' | 'ne' | 'sw' | 'se') => {
+    if (annotation.type !== 'image' && annotation.type !== 'signature') return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+    
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startWidth = annotation.size.width;
+    const startHeight = annotation.size.height;
+    
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - startX;
+      const deltaY = e.clientY - startY;
+      
+      let newWidth = startWidth;
+      let newHeight = startHeight;
+      
+      // Calculate new size based on direction
+      if (direction === 'se') {
+        newWidth = Math.max(20, startWidth + deltaX);
+        newHeight = Math.max(20, startHeight + deltaY);
+      } else if (direction === 'sw') {
+        newWidth = Math.max(20, startWidth - deltaX);
+        newHeight = Math.max(20, startHeight + deltaY);
+      } else if (direction === 'ne') {
+        newWidth = Math.max(20, startWidth + deltaX);
+        newHeight = Math.max(20, startHeight - deltaY);
+      } else if (direction === 'nw') {
+        newWidth = Math.max(20, startWidth - deltaX);
+        newHeight = Math.max(20, startHeight - deltaY);
+      }
+      
+      updateAnnotation(annotation.id, {
+        size: { width: newWidth, height: newHeight }
+      });
+    };
+    
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
   };
 
   return (
@@ -95,6 +145,9 @@ export default function DraggableAnnotation({ annotation }: DraggableAnnotationP
                     fontSize: `${annotation.fontSize}px`,
                     fontFamily: annotation.fontFamily,
                     color: annotation.color,
+                    fontWeight: annotation.fontWeight,
+                    fontStyle: annotation.fontStyle,
+                    textDecoration: annotation.textDecoration,
                   }}
                 />
                 <div className="flex items-center justify-between text-xs">
@@ -108,8 +161,11 @@ export default function DraggableAnnotation({ annotation }: DraggableAnnotationP
                   fontSize: `${annotation.fontSize}px`,
                   color: annotation.color,
                   fontFamily: annotation.fontFamily,
+                  fontWeight: annotation.fontWeight,
+                  fontStyle: annotation.fontStyle,
+                  textDecoration: annotation.textDecoration,
                 }}
-                className="whitespace-nowrap bg-white/90 backdrop-blur-sm select-none px-3 py-2 rounded-lg shadow-md border-2 border-gray-200"
+                className="whitespace-nowrap select-none"
               >
                 {annotation.text || '✏️ ดับเบิ้ลคลิกเพื่อแก้ไข'}
               </div>
@@ -135,15 +191,49 @@ export default function DraggableAnnotation({ annotation }: DraggableAnnotationP
                 width: annotation.size.width,
                 height: annotation.size.height,
               }}
-              className="pointer-events-none select-none"
+              className="pointer-events-none select-none border-transparent"
             />
             {isSelected && (
-              <button
-                onClick={handleDelete}
-                className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                ×
-              </button>
+              <>
+                {/* Delete Button */}
+                <button
+                  onClick={handleDelete}
+                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                >
+                  ×
+                </button>
+                
+                {/* Resize Handles */}
+                <div className="absolute inset-0 border-2 border-blue-500 border-dashed opacity-50 pointer-events-none"></div>
+                
+                {/* Top-left resize handle */}
+                <div
+                  className="absolute w-3 h-3 bg-blue-500 border border-white cursor-nw-resize hover:bg-blue-600"
+                  style={{ top: -6, left: -6 }}
+                  onMouseDown={(e) => handleResize(e, 'nw')}
+                />
+                
+                {/* Top-right resize handle */}
+                <div
+                  className="absolute w-3 h-3 bg-blue-500 border border-white cursor-ne-resize hover:bg-blue-600"
+                  style={{ top: -6, right: -6 }}
+                  onMouseDown={(e) => handleResize(e, 'ne')}
+                />
+                
+                {/* Bottom-left resize handle */}
+                <div
+                  className="absolute w-3 h-3 bg-blue-500 border border-white cursor-sw-resize hover:bg-blue-600"
+                  style={{ bottom: -6, left: -6 }}
+                  onMouseDown={(e) => handleResize(e, 'sw')}
+                />
+                
+                {/* Bottom-right resize handle */}
+                <div
+                  className="absolute w-3 h-3 bg-blue-500 border border-white cursor-se-resize hover:bg-blue-600"
+                  style={{ bottom: -6, right: -6 }}
+                  onMouseDown={(e) => handleResize(e, 'se')}
+                />
+              </>
             )}
           </div>
         )}
@@ -158,15 +248,47 @@ export default function DraggableAnnotation({ annotation }: DraggableAnnotationP
                 width: annotation.size.width,
                 height: annotation.size.height,
               }}
-              className="pointer-events-none select-none"
+              className="pointer-events-none select-none border-transparent"
             />
             {isSelected && (
-              <button
-                onClick={handleDelete}
-                className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                ×
-              </button>
+              <>
+                {/* Delete Button */}
+                <button
+                  onClick={handleDelete}
+                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                >
+                  ×
+                </button>
+                
+                {/* Resize Handles - No border for signature */}
+                {/* Top-left resize handle */}
+                <div
+                  className="absolute w-3 h-3 bg-blue-500 border border-white cursor-nw-resize hover:bg-blue-600"
+                  style={{ top: -6, left: -6 }}
+                  onMouseDown={(e) => handleResize(e, 'nw')}
+                />
+                
+                {/* Top-right resize handle */}
+                <div
+                  className="absolute w-3 h-3 bg-blue-500 border border-white cursor-ne-resize hover:bg-blue-600"
+                  style={{ top: -6, right: -6 }}
+                  onMouseDown={(e) => handleResize(e, 'ne')}
+                />
+                
+                {/* Bottom-left resize handle */}
+                <div
+                  className="absolute w-3 h-3 bg-blue-500 border border-white cursor-sw-resize hover:bg-blue-600"
+                  style={{ bottom: -6, left: -6 }}
+                  onMouseDown={(e) => handleResize(e, 'sw')}
+                />
+                
+                {/* Bottom-right resize handle */}
+                <div
+                  className="absolute w-3 h-3 bg-blue-500 border border-white cursor-se-resize hover:bg-blue-600"
+                  style={{ bottom: -6, right: -6 }}
+                  onMouseDown={(e) => handleResize(e, 'se')}
+                />
+              </>
             )}
           </div>
         )}

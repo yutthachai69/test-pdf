@@ -43,6 +43,9 @@ const initialState: PDFState = {
     fontSize: 16,
     color: '#000000',
     fontFamily: 'Arial',
+    fontWeight: 'normal',
+    fontStyle: 'normal',
+    textDecoration: 'none',
   },
   drawSettings: {
     color: '#000000',
